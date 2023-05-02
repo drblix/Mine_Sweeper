@@ -39,10 +39,8 @@ public class Tile : MonoBehaviour
         {
             _image.sprite = _board.GetSprite(Board.Sprites.Mine);
 
-            if (!_board.gameOver)
+            if (!_board.GameOver)
                 _image.color = Color.red;
-
-            _board.GameOver();
         }
         else
         {
@@ -56,6 +54,8 @@ public class Tile : MonoBehaviour
 
         if (GetAdjacentMines() == 0 && !_hasMine)
             _board.RevealAdjacentTiles(this);
+
+        _board.TileRevealed(this);
     }
 
     #region Mouse Events
@@ -65,7 +65,9 @@ public class Tile : MonoBehaviour
     /// </summary>
     public void MouseClick(BaseEventData data)
     {
-        if (_revealed || _board.gameOver) return;
+        if (_revealed || _board.GameOver) return;
+
+        if (!_board.MinesGenerated) _board.PlantMines(this);
 
         PointerEventData pointerData = (PointerEventData)data;
 
@@ -88,7 +90,11 @@ public class Tile : MonoBehaviour
     /// </summary>
     public void MouseEnter()
     {
-        if (_board.gameOver) return;
+        if (_board.GameOver)
+        {
+            _image.color = Color.white;
+            return;
+        }
 
         if (!_revealed)
             _image.color = _hoverColor;
@@ -99,9 +105,8 @@ public class Tile : MonoBehaviour
     /// </summary>
     public void MouseExit()
     {
-        if (_board.gameOver) return;
-
-        _image.color = Color.white;
+        if (!_board.GameOver)
+            _image.color = Color.white;
     }
 
     #endregion

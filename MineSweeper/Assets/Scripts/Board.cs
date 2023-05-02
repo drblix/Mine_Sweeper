@@ -1,10 +1,11 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 public class Board : MonoBehaviour
 {
-    public bool gameOver { get; private set; } = false;
+    public bool GameOver { get; private set; } = true;
+    public bool MinesGenerated { get; private set; } = false;
 
     private Player _player;
 
@@ -16,6 +17,13 @@ public class Board : MonoBehaviour
     private static float _tileSize;
 
     [SerializeField] private Sprite[] _sprites;
+
+    [SerializeField] TMP_InputField _widthIn, _heightIn, _minesIn;
+    [SerializeField] TextMeshProUGUI _timerDisplay;
+    [SerializeField] private Image _emoticon;
+
+    private int _revealedSafeTiles = 0, _safeTiles;
+    private float _timer = 0f;
 
     public enum Sprites
     {
@@ -36,12 +44,25 @@ public class Board : MonoBehaviour
         Dead
     }
 
+    // MAX SIZE 40 width and 14 height
+
     private void Awake()
     {
         _player = FindObjectOfType<Player>();
         _tileSize = _tile.GetComponent<RectTransform>().rect.width;
 
         _mineBoard = new Tile[_width, _height];
+
+        // CreateTiles();
+    }
+
+    private void Update()
+    {
+        if (MinesGenerated && !GameOver)
+        {
+            _timer += Time.deltaTime;
+            _timerDisplay.SetText(Mathf.FloorToInt(_timer).ToString("000"));
+        }
     }
 
     /// <summary>
@@ -49,8 +70,29 @@ public class Board : MonoBehaviour
     /// </summary>
     public void CreateTiles()
     {
-        gameOver = false;
+        GameOver = false;
         ClearBoard();
+
+        _timer = 0f;
+        _emoticon.sprite = GetSprite(Sprites.Happy);
+
+        try
+        {
+            _width = int.Parse(_widthIn.text);
+            _height = int.Parse(_heightIn.text);
+            _mineAmount = int.Parse(_minesIn.text);
+        }
+        catch (System.FormatException)
+        {
+            _width = _height = _mineAmount = 10;
+        }
+
+        _mineBoard = new Tile[_width, _height];
+
+        _revealedSafeTiles = 0;
+        _safeTiles = _width * _height - _mineAmount;
+
+
 
         // Iterating through 2D array and instantiating a tile for each position
         for (int x = 0; x < _mineBoard.GetLength(0); x++)
@@ -91,14 +133,17 @@ public class Board : MonoBehaviour
 
         transform.localPosition = Vector2.zero;
 
-        PlantMines();
+        // PlantMines();
     }
 
     /// <summary>
     /// Interates through board array and plants mines randomly
     /// </summary>
-    private void PlantMines()
+    /// <param name="exception">Tile that should not have a mine placed (typically the one the player first clicks)</param>
+    public void PlantMines(Tile exception)
     {
+        if (MinesGenerated) return;
+
         if (_mineAmount > _width * _height)
         {
             Debug.LogWarning("Planting mines error! Too many mines for the provided field size. Assigning new value.");
@@ -113,9 +158,12 @@ public class Board : MonoBehaviour
             {
                 for (int y = 0; y < _mineBoard.GetLength(1); y++)
                 {
+                    if (count == _mineAmount)
+                        break;
+
                     Tile tile = _mineBoard[x, y];
 
-                    if (Random.Range(0, 9) == 0 && !tile.GetMine())
+                    if (Random.Range(0, 9) == 0 && !tile.GetMine() && tile != exception)
                     {
                         tile.SetMine(true);
                         count++;
@@ -123,6 +171,8 @@ public class Board : MonoBehaviour
                 }
             }
         }
+
+        MinesGenerated = true;
     }
 
     /// <summary>
@@ -130,6 +180,8 @@ public class Board : MonoBehaviour
     /// </summary>
     private void ClearBoard()
     {
+        MinesGenerated = false;
+
         for (int x = 0; x < _mineBoard.GetLength(0); x++)
         {
             for (int y = 0; y < _mineBoard.GetLength(1); y++)
@@ -159,7 +211,7 @@ public class Board : MonoBehaviour
     /// </summary>
     public void RevealBoard_Debug()
     {
-        gameOver = true;
+        GameOver = true;
 
         for (int x = 0; x < _mineBoard.GetLength(0); x++)
         {
@@ -191,17 +243,39 @@ public class Board : MonoBehaviour
                 {
                     Tile otherTile = _mineBoard[xPos, yPos];
 
-                    if (!otherTile.GetMine())
+                    if (!otherTile.GetMine() && !otherTile.GetRevealed())
                         otherTile.Reveal();
                 }
             }
         }
     }
 
-    public void GameOver()
+    public void TileRevealed(Tile tile)
     {
-        gameOver = true;
+        if (tile.GetMine())
+        {
+            PlayerLose();
+        }
+        else
+        {
+            _revealedSafeTiles++;
+            if (_safeTiles == _revealedSafeTiles)
+                PlayerWin();
+        }
+    }
+
+    public void PlayerWin()
+    {
+        GameOver = true;
+        _player.PlaySound(Player.SoundClips.Tada, Player.Sources.Board);
+        _emoticon.sprite = GetSprite(Sprites.Win);
+    }
+
+    public void PlayerLose()
+    {
+        GameOver = true;
         _player.PlaySound(Player.SoundClips.Explosion, Player.Sources.Board);
+        _emoticon.sprite = GetSprite(Sprites.Dead);
 
         RevealBoard();
     }
@@ -236,6 +310,7 @@ public class Board : MonoBehaviour
 
         return count;
     }
+
 
     public Sprite GetSprite(Sprites sprite) => _sprites[(int)sprite];
     public Sprite GetSprite(int i) => _sprites[i];
