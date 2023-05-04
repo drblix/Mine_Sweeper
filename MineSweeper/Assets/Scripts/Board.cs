@@ -8,6 +8,7 @@ public class Board : MonoBehaviour
     public bool MinesGenerated { get; private set; } = false;
 
     private Player _player;
+    private PresetButtons _presetButtons;
 
     [SerializeField] private GameObject _tile;
 
@@ -18,8 +19,9 @@ public class Board : MonoBehaviour
 
     [SerializeField] private Sprite[] _sprites;
 
-    [SerializeField] TMP_InputField _widthIn, _heightIn, _minesIn;
-    [SerializeField] TextMeshProUGUI _timerDisplay;
+    [SerializeField] private TMP_InputField _widthIn, _heightIn, _minesIn;
+    [SerializeField] private Scrollbar _horizontalBar, _verticalBar;
+    [SerializeField] private TextMeshProUGUI _timerDisplay;
     [SerializeField] private Image _emoticon;
 
     private int _revealedSafeTiles = 0, _safeTiles;
@@ -46,14 +48,14 @@ public class Board : MonoBehaviour
 
     // MAX SIZE 35 width and 12 height
 
+
     private void Awake()
     {
         _player = FindObjectOfType<Player>();
+        _presetButtons = FindObjectOfType<PresetButtons>();
         _tileSize = _tile.GetComponent<RectTransform>().rect.width;
 
         _mineBoard = new Tile[_width, _height];
-
-        // CreateTiles();
     }
 
     private void Update()
@@ -63,12 +65,15 @@ public class Board : MonoBehaviour
             _timer += Time.deltaTime;
             _timerDisplay.SetText(Mathf.FloorToInt(_timer).ToString("000"));
         }
+
+        if (Input.GetKeyDown(KeyCode.Escape))
+            Application.Quit();
     }
 
     /// <summary>
     /// Creates a board of tiles
     /// </summary>
-    public void CreateTiles()
+    public void CreateTiles(bool skip)
     {
         GameOver = false;
         ClearBoard();
@@ -76,35 +81,47 @@ public class Board : MonoBehaviour
         _timer = 0f;
         _emoticon.sprite = GetSprite(Sprites.Happy);
 
-        try
+        if (!skip)
         {
-            _width = int.Parse(_widthIn.text);
-            _height = int.Parse(_heightIn.text);
-            _mineAmount = int.Parse(_minesIn.text);
+            try
+            {
+                _width = int.Parse(_widthIn.text);
+                _height = int.Parse(_heightIn.text);
+                _mineAmount = int.Parse(_minesIn.text);
+            }
+            catch (System.FormatException)
+            {
+                _width = _height = _mineAmount = 10;
+            }
         }
-        catch (System.FormatException)
-        {
-            _width = _height = _mineAmount = 10;
-        }
+
+        // gameobject limit for unity
+        if (_width * _height >= 2800)
+            return;
 
         if (_width >= 35)
         {
             // enable horizontal scrollbar
-            Debug.Log("Max width reached");
+            _horizontalBar.gameObject.SetActive(true);
+            _horizontalBar.value = .5f;
         }
+        else
+            _horizontalBar.gameObject.SetActive(false);
 
         if (_height >= 12)
         {
             // enable vertical scrollbar
-            Debug.Log("Max height reached");
+            _verticalBar.gameObject.SetActive(true);
+            _verticalBar.value = .5f;
         }
+        else
+            _verticalBar.gameObject.SetActive(false);
+
 
         _mineBoard = new Tile[_width, _height];
 
         _revealedSafeTiles = 0;
         _safeTiles = _width * _height - _mineAmount;
-
-
 
         // Iterating through 2D array and instantiating a tile for each position
         for (int x = 0; x < _mineBoard.GetLength(0); x++)
@@ -127,6 +144,14 @@ public class Board : MonoBehaviour
         }
 
         CenterTiles();
+    }
+
+    public void CreateTiles(int width, int height, int mines)
+    {
+        _width = width;
+        _height = height;
+        _mineAmount = mines;
+        CreateTiles(true);
     }
 
     /// <summary>
@@ -156,10 +181,10 @@ public class Board : MonoBehaviour
     {
         if (MinesGenerated) return;
 
-        if (_mineAmount > _width * _height)
+        if (_mineAmount >= _width * _height)
         {
             Debug.LogWarning("Planting mines error! Too many mines for the provided field size. Assigning new value.");
-            _mineAmount = _width * _height - 4;
+            _mineAmount = _width * _height - 1;
         }
 
         int count = 0;
@@ -175,7 +200,7 @@ public class Board : MonoBehaviour
 
                     Tile tile = _mineBoard[x, y];
 
-                    if (Random.Range(0, 9) == 0 && !tile.GetMine() && tile != exception)
+                    if (Random.Range(0, 13) == 0 && !tile.GetMine() && tile != exception)
                     {
                         tile.SetMine(true);
                         count++;
@@ -281,6 +306,8 @@ public class Board : MonoBehaviour
         GameOver = true;
         _player.PlaySound(Player.SoundClips.Tada, Player.Sources.Board);
         _emoticon.sprite = GetSprite(Sprites.Win);
+
+        _presetButtons.PlayerWon(_height, _width, _mineAmount);
     }
 
     public void PlayerLose()

@@ -59,7 +59,7 @@ public class Tile : MonoBehaviour
     }
 
     #region Mouse Events
-    
+   
     /// <summary>
     /// Method to handle mouse click event
     /// </summary>
