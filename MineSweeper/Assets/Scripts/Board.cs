@@ -44,7 +44,7 @@ public class Board : MonoBehaviour
         Dead
     }
 
-    // MAX SIZE 40 width and 14 height
+    // MAX SIZE 35 width and 12 height
 
     private void Awake()
     {
@@ -85,6 +85,18 @@ public class Board : MonoBehaviour
         catch (System.FormatException)
         {
             _width = _height = _mineAmount = 10;
+        }
+
+        if (_width >= 35)
+        {
+            // enable horizontal scrollbar
+            Debug.Log("Max width reached");
+        }
+
+        if (_height >= 12)
+        {
+            // enable vertical scrollbar
+            Debug.Log("Max height reached");
         }
 
         _mineBoard = new Tile[_width, _height];
@@ -314,4 +326,6 @@ public class Board : MonoBehaviour
 
     public Sprite GetSprite(Sprites sprite) => _sprites[(int)sprite];
     public Sprite GetSprite(int i) => _sprites[i];
+    public float GetBoardWidth() => _tileSize * _width;
+    public float GetBoardHeight() => _tileSize * _height;
 }
