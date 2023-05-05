@@ -10,8 +10,6 @@ public class BoardScrollbar : MonoBehaviour
     private Board _board;
     private Scrollbar _scrollbar;
 
-    private float _prevValue = .5f;
-
     [SerializeField] private bool _horizontal = true;
 
     private void Awake() 
